@@ -118,12 +118,12 @@ let reloadSoundCooldown = 0;
 
 let tutorialLines = [
   "Gold convoys are racing across Hungary",
-  "trying to deliver dirty money.",
+  "trying to deliver gold to Peter Magyar.",
   "",
   "Tap the trucks to launch missiles",
-  "from Parliament and stop them.",
+  "and stop the smugglers.",
   "",
-  "Don't let the gold reach the city.",
+  "Don't let the gold reach Peter.",
   "",
   "Tap to begin"
 ];
@@ -490,7 +490,7 @@ function drawGameOver() {
 
   pg.fill(255, 220, 0);
   pg.textSize(22);
-  pg.text("The convoy broke through.", BASE_W / 2, BASE_H * 0.65);
+  pg.text("Peter Magyar got the gold.", BASE_W / 2, BASE_H * 0.65);
 
   pg.fill(255);
   pg.textSize(32);
