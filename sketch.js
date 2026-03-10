@@ -207,25 +207,25 @@ function syncMusicToState() {
 
 function updateDifficultyFromKills() {
   // starts a bit harder, but scales more smoothly
-  spawnInterval = clamp(1.00 - trucksDestroyed * 0.020, 0.58, 1.00);
+  spawnInterval = clamp(1.00 - trucksDestroyed * 0.022, 0.48, 1.00);
 
   // slower ramp for simultaneous trucks
-  if (trucksDestroyed < 6) {
-    maxTrucks = 3;
-  } else if (trucksDestroyed < 14) {
-    maxTrucks = 4;
-  } else if (trucksDestroyed < 26) {
-    maxTrucks = 5;
-  } else if (trucksDestroyed < 40) {
-    maxTrucks = 6;
-  } else {
-    maxTrucks = 7;
-  }
+  if (trucksDestroyed < 5) {
+  maxTrucks = 3;
+} else if (trucksDestroyed < 12) {
+  maxTrucks = 4;
+} else if (trucksDestroyed < 22) {
+  maxTrucks = 5;
+} else if (trucksDestroyed < 34) {
+  maxTrucks = 6;
+} else {
+  maxTrucks = 7;
+}
 }
 
 function getTruckSpeedBonus() {
   // less explosive curve than before
-  return Math.min(180, trucksDestroyed * 4.5);
+  return Math.min(240, trucksDestroyed * 5.5);
 }
 
 // ----------------------------------------------------
