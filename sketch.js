@@ -20,6 +20,7 @@
     sfx_explosion.wav
     sfx_game_over.wav
     sfx_reload.wav
+    sfx_base_hit.wav
     music_menu.wav
     music_gameplay.mp3
 
@@ -68,6 +69,25 @@ let lastRender = { dx: 0, dy: 0, s: 1, dw: BASE_W, dh: BASE_H };
 // ----------------------------------------------------
 let audioUnlocked = false;
 
+// Master knobs
+let MASTER_SFX_VOL = 0.72;
+let MASTER_MUSIC_VOL = 0.82;
+
+// Per-sound knobs
+let SFX_VOL = {
+  button: 0.55,
+  explosion: 0.72,
+  gameOver: 0.78,
+  reload: 0.22,
+  baseHit: 0.28,
+  hit: 0.45,
+};
+
+let MUSIC_VOL = {
+  menu: 0.45,
+  gameplay: 0.36,
+};
+
 // ----------------------------------------------------
 // Game vars
 // ----------------------------------------------------
@@ -81,7 +101,7 @@ let lives = 3;
 let maxLives = 3;
 
 let spawnTimer = 0;
-let spawnInterval = 1.15;
+let spawnInterval = 1.00;
 let maxTrucks = 3;
 
 // difficulty scales by destroyed trucks
@@ -155,13 +175,13 @@ function unlockAudioOnce() {
 
 function playSFX(sound, vol = 1.0) {
   if (!audioUnlocked || !sound) return;
-  sound.setVolume(vol);
+  sound.setVolume(clamp(vol * MASTER_SFX_VOL, 0, 1));
   sound.play();
 }
 
 function loopMusic(track, vol = 0.4) {
   if (!audioUnlocked || !track) return;
-  track.setVolume(vol);
+  track.setVolume(clamp(vol * MASTER_MUSIC_VOL, 0, 1));
   if (!track.isPlaying()) track.loop();
 }
 
@@ -175,10 +195,10 @@ function syncMusicToState() {
 
   if (gameState === STATE.START) {
     stopMusic(music.gameplay);
-    loopMusic(music.menu, 0.45);
+    loopMusic(music.menu, MUSIC_VOL.menu);
   } else if (gameState === STATE.PLAYING) {
     stopMusic(music.menu);
-    loopMusic(music.gameplay, 0.36);
+    loopMusic(music.gameplay, MUSIC_VOL.gameplay);
   } else if (gameState === STATE.GAME_OVER) {
     stopMusic(music.gameplay);
     stopMusic(music.menu);
@@ -186,12 +206,26 @@ function syncMusicToState() {
 }
 
 function updateDifficultyFromKills() {
-  spawnInterval = clamp(1.15 - trucksDestroyed * 0.035, 0.34, 1.15);
-  maxTrucks = Math.floor(clamp(3 + trucksDestroyed / 4, 3, 8));
+  // starts a bit harder, but scales more smoothly
+  spawnInterval = clamp(1.00 - trucksDestroyed * 0.020, 0.58, 1.00);
+
+  // slower ramp for simultaneous trucks
+  if (trucksDestroyed < 6) {
+    maxTrucks = 3;
+  } else if (trucksDestroyed < 14) {
+    maxTrucks = 4;
+  } else if (trucksDestroyed < 26) {
+    maxTrucks = 5;
+  } else if (trucksDestroyed < 40) {
+    maxTrucks = 6;
+  } else {
+    maxTrucks = 7;
+  }
 }
 
 function getTruckSpeedBonus() {
-  return Math.min(300, trucksDestroyed * 9);
+  // less explosive curve than before
+  return Math.min(180, trucksDestroyed * 4.5);
 }
 
 // ----------------------------------------------------
@@ -263,8 +297,9 @@ function resetGame() {
   trucksDestroyed = 0;
   tutorialActive = false;
 
-  spawnTimer = 0.35;
-  spawnInterval = 1.15;
+  // Arranca un poco más difícil que antes
+  spawnTimer = 0.25;
+  spawnInterval = 1.00;
   maxTrucks = 3;
 
   canShoot = true;
@@ -318,7 +353,6 @@ function drawBackground() {
 function drawParliament() {
   if (!img.parliament) return;
 
-  // larger than before, almost full width
   const targetW = BASE_W * 1.05;
   const ratio = img.parliament.height / img.parliament.width;
   const targetH = targetW * ratio;
@@ -355,7 +389,6 @@ function drawHUD() {
     }
   }
 
-  // reload indicator
   if (!canShoot) {
     const barX = 26;
     const barY = 108;
@@ -536,10 +569,10 @@ class Truck {
     this.scale = random(0.86, 0.98);
     this.x = random(120, BASE_W - 120);
     this.y = -240;
-    this.speed = random(320, 460) + getTruckSpeedBonus();
+    this.speed = random(340, 470) + getTruckSpeedBonus();
     this.dead = false;
 
-    this.vx = random(-34, 34);
+    this.vx = random(-30, 30);
 
     this.w = 170;
     this.h = 230;
@@ -617,7 +650,7 @@ class Truck {
     canShoot = false;
     shotCooldown = shotCooldownDuration;
 
-    playSFX(sfx.explosion, 0.9);
+    playSFX(sfx.explosion, SFX_VOL.explosion);
   }
 }
 
@@ -773,15 +806,18 @@ function loseLife(x, y) {
   lives -= 1;
   explosions.push(new Explosion(x, y, 0.8));
 
-  // sonido cuando el camión alcanza la base
-  playSFX(sfx.baseHit, 0.9);
+  // base hit softer than before
+  if (lives > 0) {
+    playSFX(sfx.baseHit, SFX_VOL.baseHit);
+  }
 
   if (lives <= 0) {
     lives = 0;
-    playSFX(sfx.gameOver, 0.95);
+    playSFX(sfx.gameOver, SFX_VOL.gameOver);
     setState(STATE.GAME_OVER);
   }
 }
+
 // ----------------------------------------------------
 // Input
 // ----------------------------------------------------
@@ -803,7 +839,7 @@ function handlePress(sx, sy) {
   if (gameState === STATE.START) {
     const btn = getStartButtonRect();
     if (pointInRect(x, y, btn)) {
-      playSFX(sfx.button, 0.85);
+      playSFX(sfx.button, SFX_VOL.button);
       resetGame();
       setState(STATE.PLAYING);
       tutorialActive = true;
@@ -814,7 +850,7 @@ function handlePress(sx, sy) {
   if (gameState === STATE.GAME_OVER) {
     const btn = getRetryButtonRect();
     if (pointInRect(x, y, btn)) {
-      playSFX(sfx.button, 0.85);
+      playSFX(sfx.button, SFX_VOL.button);
       resetGame();
       setState(STATE.START);
     }
@@ -830,8 +866,8 @@ function handlePress(sx, sy) {
 
   if (!canShoot) {
     if (reloadSoundCooldown <= 0) {
-      playSFX(sfx.reload, 0.75);
-      reloadSoundCooldown = 0.08;
+      playSFX(sfx.reload, SFX_VOL.reload);
+      reloadSoundCooldown = 0.10;
     }
     return;
   }
