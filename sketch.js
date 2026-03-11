@@ -94,13 +94,13 @@ let tutorialLines = [
   "Aranyszállító konvojok lépnek be",
   "Magyarországra.",
   "",
-  "Peter Magyarhoz próbálnak eljutni.",
+  "Magyar Péterhez próbálnak eljutni.",
   "",
   "Koppints a teherautókra,",
   "hogy a rendőrségi háló elfogja őket.",
   "",
   "Ne hagyd, hogy az arany",
-  "eljusson Peter Magyarhoz.",
+  "eljusson Magyar Péterhez.",
   "",
   "Koppints a kezdéshez."
 ];
@@ -466,7 +466,7 @@ function drawGameOver() {
 
   pg.fill(255, 220, 0);
   pg.textSize(22);
-  pg.text("Az arany eljutott Peter Magyarhoz.", BASE_W / 2, BASE_H * 0.65);
+  pg.text("Az arany eljutott Magyar Péterhez.", BASE_W / 2, BASE_H * 0.65);
 
   pg.fill(255);
   pg.textSize(30);
