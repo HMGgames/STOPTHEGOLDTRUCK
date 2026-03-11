@@ -357,7 +357,7 @@ function drawHUD() {
   pg.rect(26, 24, 320, 72, 14);
   pg.fill(255);
   pg.textSize(28);
-  pg.text(`SCORE ${score}`, 44, 46);
+  pg.text(`PONT  ${score}`, 44, 46);
 
   const meterImg = getGoldMeterImage();
   if (meterImg) {
