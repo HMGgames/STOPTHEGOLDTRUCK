@@ -187,15 +187,15 @@ function syncMusicToState() {
 }
 
 function updateDifficultyFromKills() {
-  spawnInterval = clamp(1.0 - trucksCaptured * 0.022, 0.48, 1.0);
+  spawnInterval = clamp(0.92 - trucksCaptured * 0.022, 0.42, 0.92);
 
-  if (trucksCaptured < 5) {
+  if (trucksCaptured < 4) {
     maxTrucks = 3;
-  } else if (trucksCaptured < 12) {
+  } else if (trucksCaptured < 10) {
     maxTrucks = 4;
-  } else if (trucksCaptured < 22) {
+  } else if (trucksCaptured < 18) {
     maxTrucks = 5;
-  } else if (trucksCaptured < 34) {
+  } else if (trucksCaptured < 30) {
     maxTrucks = 6;
   } else {
     maxTrucks = 7;
@@ -203,7 +203,11 @@ function updateDifficultyFromKills() {
 }
 
 function getTruckSpeedBonus() {
-  return Math.min(240, trucksCaptured * 5.5);
+  return Math.min(300, trucksCaptured * 6.5);
+}
+
+function getZigAmountBonus() {
+  return Math.min(42, trucksCaptured * 0.9);
 }
 
 function getGoldMeterImage() {
@@ -292,8 +296,8 @@ function resetGame() {
   trucksCaptured = 0;
   tutorialActive = false;
 
-  spawnTimer = 0.25;
-  spawnInterval = 1.0;
+  spawnTimer = 0.2;
+  spawnInterval = 0.92;
   maxTrucks = 3;
 
   canShoot = true;
@@ -347,7 +351,6 @@ function drawBackground() {
 function drawBase() {
   if (!img.base) return;
 
-  // moved a bit to the left to make room for meter on bottom-right
   const targetW = BASE_W * 0.84;
   const ratio = img.base.height / img.base.width;
   const targetH = targetW * ratio;
@@ -363,14 +366,12 @@ function drawHUD() {
   pg.textFont(fontMain || "Arial");
   pg.textAlign(LEFT, TOP);
 
-  // Score
   pg.fill(0, 180);
   pg.rect(26, 24, 320, 72, 14);
   pg.fill(255);
   pg.textSize(28);
   pg.text(`SCORE ${score}`, 44, 46);
 
-  // Gold delivery meter bottom-right
   const meterImg = getGoldMeterImage();
   if (meterImg) {
     const w = 250;
@@ -380,7 +381,6 @@ function drawHUD() {
     pg.image(meterImg, x, y, w, h);
   }
 
-  // Reload bar
   if (!canShoot) {
     const barX = 26;
     const barY = 108;
@@ -556,12 +556,10 @@ class Truck {
     this.scale = random(0.86, 0.98);
     this.y = -240;
     this.dead = false;
-    this.vx = random(-30, 30);
 
     this.w = 170;
     this.h = 230;
 
-    // spawn avoiding Zelensky dead zone
     let tries = 0;
     let candidateX = random(120, BASE_W - 120);
 
@@ -570,8 +568,30 @@ class Truck {
       tries++;
     }
 
+    this.baseX = candidateX;
     this.x = candidateX;
-    this.speed = random(340, 470) + getTruckSpeedBonus();
+
+    // faster overall
+    this.speed = random(390, 540) + getTruckSpeedBonus();
+
+    // movement type
+    const r = random();
+    if (r < 0.45) {
+      this.moveType = "straight";
+    } else if (r < 0.72) {
+      this.moveType = "drift";
+    } else {
+      this.moveType = "zigzag";
+    }
+
+    // natural drift
+    this.driftVx = random(-22, 22);
+
+    // curvy zig-zag params
+    this.zigPhase = random(TWO_PI);
+    this.zigTimer = 0;
+    this.zigSpeed = random(1.2, 2.0);
+    this.zigAmount = random(28, 58) + getZigAmountBonus();
   }
 
   getBottomDangerY() {
@@ -580,10 +600,25 @@ class Truck {
 
   update(dt) {
     this.y += this.speed * dt;
-    this.x += this.vx * dt;
 
-    if (this.x < 95 || this.x > BASE_W - 95) {
-      this.vx *= -1;
+    if (this.moveType === "straight") {
+      // tiny natural drift
+      this.x += this.driftVx * 0.18 * dt;
+    } else if (this.moveType === "drift") {
+      this.x += this.driftVx * dt;
+    } else if (this.moveType === "zigzag") {
+      this.zigTimer += dt;
+      this.x = this.baseX + Math.sin(this.zigPhase + this.zigTimer * this.zigSpeed) * this.zigAmount;
+    }
+
+    if (this.moveType !== "zigzag") {
+      if (this.x < 95 || this.x > BASE_W - 95) {
+        this.driftVx *= -1;
+      }
+      this.x = clamp(this.x, 95, BASE_W - 95);
+    } else {
+      // keep zig-zag inside bounds naturally
+      this.x = clamp(this.x, 95, BASE_W - 95);
     }
 
     if (this.y >= this.getBottomDangerY()) {
