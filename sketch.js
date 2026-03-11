@@ -213,6 +213,15 @@ function getGoldMeterImage() {
   return img.goldMeter3;
 }
 
+function getLearnMoreButtonRect() {
+  return {
+    x: (BASE_W - 700) / 2,
+    y: BASE_H * 0.885,
+    w: 700,
+    h: 120,
+  };
+}
+
 // ----------------------------------------------------
 // Preload
 // ----------------------------------------------------
@@ -225,6 +234,7 @@ function preload() {
 
   img.buttonStart = loadImage(assetPath("ui_gold_button_start.png"));
   img.buttonRetry = loadImage(assetPath("ui_gold_button_retry.png"));
+  img.buttonPage = loadImage(assetPath("ui_gold_button_page.png"));
 
   img.goldMeter0 = loadImage(assetPath("ui_gold_meter_0.png"));
   img.goldMeter1 = loadImage(assetPath("ui_gold_meter_1.png"));
@@ -472,15 +482,26 @@ function drawGameOver() {
   pg.textSize(30);
   pg.text(`VÉGSŐ PONTSZÁM: ${score}`, BASE_W / 2, BASE_H * 0.72);
 
-  const btn = getRetryButtonRect();
+  const retryBtn = getRetryButtonRect();
   if (img.buttonRetry) {
-    pg.image(img.buttonRetry, btn.x, btn.y, btn.w, btn.h);
+    pg.image(img.buttonRetry, retryBtn.x, retryBtn.y, retryBtn.w, retryBtn.h);
   } else {
     pg.fill(40);
-    pg.rect(btn.x, btn.y, btn.w, btn.h, 16);
+    pg.rect(retryBtn.x, retryBtn.y, retryBtn.w, retryBtn.h, 16);
     pg.fill(255);
     pg.textSize(30);
-    pg.text("PRÓBÁLD ÚJRA", btn.x + btn.w / 2, btn.y + btn.h / 2);
+    pg.text("PRÓBÁLD ÚJRA", retryBtn.x + retryBtn.w / 2, retryBtn.y + retryBtn.h / 2);
+  }
+
+  const pageBtn = getLearnMoreButtonRect();
+  if (img.buttonPage) {
+    pg.image(img.buttonPage, pageBtn.x, pageBtn.y, pageBtn.w, pageBtn.h);
+  } else {
+    pg.fill(40);
+    pg.rect(pageBtn.x, pageBtn.y, pageBtn.w, pageBtn.h, 16);
+    pg.fill(255);
+    pg.textSize(26);
+    pg.text("TUDD MEG AZ IGAZSÁGOT", pageBtn.x + pageBtn.w / 2, pageBtn.y + pageBtn.h / 2);
   }
 
   pg.pop();
@@ -772,12 +793,21 @@ function handlePress(sx, sy) {
   }
 
   if (gameState === STATE.GAME_OVER) {
-    const btn = getRetryButtonRect();
-    if (pointInRect(x, y, btn)) {
+    const retryBtn = getRetryButtonRect();
+    if (pointInRect(x, y, retryBtn)) {
       playSFX(sfx.button, SFX_VOL.button);
       resetGame();
       setState(STATE.START);
+      return;
     }
+
+    const pageBtn = getLearnMoreButtonRect();
+    if (pointInRect(x, y, pageBtn)) {
+      playSFX(sfx.button, SFX_VOL.button);
+      window.open("https://ketarc.hu", "_blank");
+      return;
+    }
+
     return;
   }
 
