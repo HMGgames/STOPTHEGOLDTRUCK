@@ -1,34 +1,5 @@
 /*
-  STOP THE GOLD TRUCKS — p5.js vertical arcade prototype V2
-  ---------------------------------------------------------
-  Required assets inside /assets:
-
-  Images:
-    bg_farmland.png
-    base_parliament.png
-    enemy_gold_truck.png
-    fx_explosion.png
-    prop_gold_bar.png
-    ui_heart.png
-    ui_button_start.png
-    ui_button_retry.png
-    screen_title.png
-    screen_game_over.png
-
-  Audio:
-    sfx_button.wav
-    sfx_explosion.wav
-    sfx_game_over.wav
-    sfx_reload.wav
-    sfx_base_hit.wav
-    music_menu.wav
-    music_gameplay.mp3
-
-  Optional:
-    sfx_hit.wav
-
-  IMPORTANT:
-  Include p5.sound in your HTML.
+  STOP THE GOLD TRUCKS — FINAL POLICE NET VERSION
 */
 
 const ASSET_DIR = "assets/";
@@ -76,11 +47,10 @@ let MASTER_MUSIC_VOL = 0.82;
 // Per-sound knobs
 let SFX_VOL = {
   button: 0.55,
-  explosion: 0.72,
+  netCapture: 0.62,
   gameOver: 0.78,
   reload: 0.22,
   baseHit: 0.28,
-  hit: 0.45,
 };
 
 let MUSIC_VOL = {
@@ -92,8 +62,7 @@ let MUSIC_VOL = {
 // Game vars
 // ----------------------------------------------------
 let trucks = [];
-let explosions = [];
-let goldBursts = [];
+let captures = [];
 let popups = [];
 
 let score = 0;
@@ -101,11 +70,11 @@ let lives = 3;
 let maxLives = 3;
 
 let spawnTimer = 0;
-let spawnInterval = 1.00;
+let spawnInterval = 1.0;
 let maxTrucks = 3;
 
-// difficulty scales by destroyed trucks
-let trucksDestroyed = 0;
+// difficulty scales by captured trucks
+let trucksCaptured = 0;
 
 // tutorial after start
 let tutorialActive = false;
@@ -117,13 +86,13 @@ let shotCooldownDuration = 0.26;
 let reloadSoundCooldown = 0;
 
 let tutorialLines = [
-  "Gold convoys are racing across Hungary",
-  "trying to deliver gold to Peter Magyar.",
+  "Gold convoys are entering Hungary.",
+  "They are trying to reach Peter Magyar.",
   "",
-  "Tap the trucks to launch missiles",
-  "and stop the smugglers.",
+  "Tap the trucks to capture them",
+  "with police nets.",
   "",
-  "Don't let the gold reach Peter.",
+  "Don't let the gold reach Peter Magyar.",
   "",
   "Tap to begin"
 ];
@@ -206,42 +175,39 @@ function syncMusicToState() {
 }
 
 function updateDifficultyFromKills() {
-  // starts a bit harder, but scales more smoothly
-  spawnInterval = clamp(1.00 - trucksDestroyed * 0.022, 0.48, 1.00);
+  spawnInterval = clamp(1.0 - trucksCaptured * 0.022, 0.48, 1.0);
 
-  // slower ramp for simultaneous trucks
-  if (trucksDestroyed < 5) {
-  maxTrucks = 3;
-} else if (trucksDestroyed < 12) {
-  maxTrucks = 4;
-} else if (trucksDestroyed < 22) {
-  maxTrucks = 5;
-} else if (trucksDestroyed < 34) {
-  maxTrucks = 6;
-} else {
-  maxTrucks = 7;
-}
+  if (trucksCaptured < 5) {
+    maxTrucks = 3;
+  } else if (trucksCaptured < 12) {
+    maxTrucks = 4;
+  } else if (trucksCaptured < 22) {
+    maxTrucks = 5;
+  } else if (trucksCaptured < 34) {
+    maxTrucks = 6;
+  } else {
+    maxTrucks = 7;
+  }
 }
 
 function getTruckSpeedBonus() {
-  // less explosive curve than before
-  return Math.min(240, trucksDestroyed * 5.5);
+  return Math.min(240, trucksCaptured * 5.5);
 }
 
 // ----------------------------------------------------
 // Preload
 // ----------------------------------------------------
 function preload() {
-  img.bg = loadImage(assetPath("bg_farmland_v2.png"));
-  img.parliament = loadImage(assetPath("base_parliament.png"));
+  img.bg = loadImage(assetPath("bg_desert_route.png"));
+  img.base = loadImage(assetPath("base_peter_magyar.png"));
   img.truck = loadImage(assetPath("enemy_gold_truck.png"));
-  img.explosion = loadImage(assetPath("fx_explosion.png"));
-  img.gold = loadImage(assetPath("prop_gold_bar.png"));
+  img.truckNet = loadImage(assetPath("enemy_gold_truck_net.png"));
+  img.net = loadImage(assetPath("fx_net.png"));
   img.heart = loadImage(assetPath("ui_heart.png"));
-  img.buttonStart = loadImage(assetPath("ui_button_start.png"));
-  img.buttonRetry = loadImage(assetPath("ui_button_retry.png"));
-  img.screenTitle = loadImage(assetPath("screen_title.png"));
-  img.screenGameOver = loadImage(assetPath("screen_game_over.png"));
+  img.buttonStart = loadImage(assetPath("ui_gold_button_start.png"));
+  img.buttonRetry = loadImage(assetPath("ui_gold_button_retry.png"));
+  img.screenTitle = loadImage(assetPath("screen_title_police.png"));
+  img.screenGameOver = loadImage(assetPath("screen_game_over_fun.png"));
 
   try {
     fontMain = loadFont(assetPath("PressStart2P-Regular.ttf"));
@@ -250,14 +216,10 @@ function preload() {
   }
 
   sfx.button = loadSound(assetPath("sfx_button.wav"));
-  sfx.explosion = loadSound(assetPath("sfx_explosion.wav"));
+  sfx.netCapture = loadSound(assetPath("sfx_net_capture.wav"));
   sfx.gameOver = loadSound(assetPath("sfx_game_over.wav"));
   sfx.reload = loadSound(assetPath("sfx_reload.wav"));
   sfx.baseHit = loadSound(assetPath("sfx_base_hit.wav"));
-
-  try {
-    sfx.hit = loadSound(assetPath("sfx_hit.wav"));
-  } catch (e) {}
 
   music.menu = loadSound(assetPath("music_menu.wav"));
   music.gameplay = loadSound(assetPath("music_gameplay.mp3"));
@@ -287,19 +249,17 @@ function windowResized() {
 // ----------------------------------------------------
 function resetGame() {
   trucks = [];
-  explosions = [];
-  goldBursts = [];
+  captures = [];
   popups = [];
 
   score = 0;
   lives = 3;
 
-  trucksDestroyed = 0;
+  trucksCaptured = 0;
   tutorialActive = false;
 
-  // Arranca un poco más difícil que antes
   spawnTimer = 0.25;
-  spawnInterval = 1.00;
+  spawnInterval = 1.0;
   maxTrucks = 3;
 
   canShoot = true;
@@ -346,21 +306,21 @@ function drawBackground() {
   if (img.bg) {
     pg.image(img.bg, 0, 0, BASE_W, BASE_H);
   } else {
-    pg.background(120, 170, 90);
+    pg.background(140, 110, 70);
   }
 }
 
-function drawParliament() {
-  if (!img.parliament) return;
+function drawBase() {
+  if (!img.base) return;
 
-  const targetW = BASE_W * 1.05;
-  const ratio = img.parliament.height / img.parliament.width;
+  const targetW = BASE_W * 1.02;
+  const ratio = img.base.height / img.base.width;
   const targetH = targetW * ratio;
 
   const x = (BASE_W - targetW) / 2;
-  const y = BASE_H - targetH - 0.2;
+  const y = BASE_H - targetH - 6;
 
-  pg.image(img.parliament, x, y, targetW, targetH);
+  pg.image(img.base, x, y, targetW, targetH);
 }
 
 function drawHUD() {
@@ -383,9 +343,6 @@ function drawHUD() {
   for (let i = 0; i < lives; i++) {
     if (img.heart) {
       pg.image(img.heart, startX + i * (heartSize + gap), y, heartSize, heartSize);
-    } else {
-      pg.fill(220, 40, 50);
-      pg.circle(startX + i * (heartSize + gap) + 28, y + 28, 42);
     }
   }
 
@@ -434,7 +391,6 @@ function drawTutorialOverlay() {
   const y = BASE_H * 0.44;
 
   pg.push();
-
   pg.noStroke();
   pg.fill(0, 170);
   pg.rect(0, 0, BASE_W, BASE_H);
@@ -444,7 +400,6 @@ function drawTutorialOverlay() {
 
   pg.textFont(fontMain || "Arial");
   pg.textAlign(CENTER, TOP);
-
   pg.fill(255);
   pg.textSize(22);
 
@@ -459,11 +414,10 @@ function drawTutorialOverlay() {
 }
 
 function drawPlaying() {
-  drawParliament();
+  drawBase();
 
   for (const t of trucks) t.draw(pg);
-  for (const e of explosions) e.draw(pg);
-  for (const g of goldBursts) g.draw(pg);
+  for (const c of captures) c.draw(pg);
   for (const p of popups) p.draw(pg);
 
   drawHUD();
@@ -477,7 +431,7 @@ function drawGameOver() {
     pg.rect(0, 0, BASE_W, BASE_H);
   }
 
-  pg.fill(0, 130);
+  pg.fill(0, 100);
   pg.rect(0, 0, BASE_W, BASE_H);
 
   pg.push();
@@ -490,7 +444,7 @@ function drawGameOver() {
 
   pg.fill(255, 220, 0);
   pg.textSize(22);
-  pg.text("Peter Magyar got the gold.", BASE_W / 2, BASE_H * 0.65);
+  pg.text("The gold reached Peter Magyar.", BASE_W / 2, BASE_H * 0.65);
 
   pg.fill(255);
   pg.textSize(32);
@@ -551,13 +505,11 @@ function updatePlaying(dt) {
   }
 
   for (const t of trucks) t.update(dt);
-  for (const e of explosions) e.update(dt);
-  for (const g of goldBursts) g.update(dt);
+  for (const c of captures) c.update(dt);
   for (const p of popups) p.update(dt);
 
   trucks = trucks.filter(t => !t.dead);
-  explosions = explosions.filter(e => !e.dead);
-  goldBursts = goldBursts.filter(g => !g.dead);
+  captures = captures.filter(c => !c.dead);
   popups = popups.filter(p => !p.dead);
 }
 
@@ -571,7 +523,6 @@ class Truck {
     this.y = -240;
     this.speed = random(340, 470) + getTruckSpeedBonus();
     this.dead = false;
-
     this.vx = random(-30, 30);
 
     this.w = 170;
@@ -597,14 +548,7 @@ class Truck {
   }
 
   draw(g) {
-    if (!img.truck) {
-      g.push();
-      g.fill(40);
-      g.rectMode(CENTER);
-      g.rect(this.x, this.y, this.w, this.h, 16);
-      g.pop();
-      return;
-    }
+    if (!img.truck) return;
 
     const drawW = img.truck.width * this.scale;
     const drawH = img.truck.height * this.scale;
@@ -616,15 +560,6 @@ class Truck {
   }
 
   hitTest(px, py) {
-    if (!img.truck) {
-      return (
-        px >= this.x - this.w / 2 &&
-        px <= this.x + this.w / 2 &&
-        py >= this.y - this.h / 2 &&
-        py <= this.y + this.h / 2
-      );
-    }
-
     const drawW = img.truck.width * this.scale;
     const drawH = img.truck.height * this.scale;
 
@@ -636,30 +571,29 @@ class Truck {
     return px >= left && px <= right && py >= top && py <= bottom;
   }
 
-  destroy() {
+  capture() {
     this.dead = true;
 
-    explosions.push(new Explosion(this.x, this.y, random(0.90, 1.10)));
-    goldBursts.push(new GoldBurst(this.x, this.y));
+    captures.push(new CaptureEffect(this.x, this.y, this.scale));
     popups.push(new ScorePopup(this.x, this.y, "+100"));
 
     score += 100;
-    trucksDestroyed += 1;
+    trucksCaptured += 1;
     updateDifficultyFromKills();
 
     canShoot = false;
     shotCooldown = shotCooldownDuration;
 
-    playSFX(sfx.explosion, SFX_VOL.explosion);
+    playSFX(sfx.netCapture, SFX_VOL.netCapture);
   }
 }
 
-class Explosion {
+class CaptureEffect {
   constructor(x, y, scale = 1) {
     this.x = x;
     this.y = y;
     this.scale = scale;
-    this.life = 0.32;
+    this.life = 0.38;
     this.t = this.life;
     this.dead = false;
   }
@@ -672,94 +606,29 @@ class Explosion {
   draw(g) {
     const a = clamp(this.t / this.life, 0, 1);
 
-    if (img.explosion) {
-      const pulse = 1 + (1 - a) * 0.15;
-      const w = img.explosion.width * this.scale * pulse;
-      const h = img.explosion.height * this.scale * pulse;
+    g.push();
+    g.imageMode(CENTER);
+    g.tint(255, 255 * a);
 
-      g.push();
-      g.imageMode(CENTER);
-      g.tint(255, 255 * a);
-      g.image(img.explosion, this.x, this.y, w, h);
-      g.noTint();
-      g.pop();
-    } else {
-      g.push();
-      g.noStroke();
-      g.fill(255, 180, 40, 220 * a);
-      g.circle(this.x, this.y, 140 * this.scale);
-      g.pop();
-    }
-  }
-}
-
-class GoldParticle {
-  constructor(x, y, angle, speed) {
-    this.x = x;
-    this.y = y;
-    this.vx = Math.cos(angle) * speed;
-    this.vy = Math.sin(angle) * speed - random(30, 80);
-    this.gravity = 360;
-    this.rot = random(-0.2, 0.2);
-    this.angle = random(TWO_PI);
-    this.scale = random(0.18, 0.28);
-    this.life = 0.8;
-    this.t = this.life;
-    this.dead = false;
-  }
-
-  update(dt) {
-    this.t -= dt;
-    if (this.t <= 0) {
-      this.dead = true;
-      return;
+    if (img.truckNet) {
+      const w = img.truckNet.width * this.scale;
+      const h = img.truckNet.height * this.scale;
+      g.image(img.truckNet, this.x, this.y, w, h);
+    } else if (img.truck) {
+      const w = img.truck.width * this.scale;
+      const h = img.truck.height * this.scale;
+      g.image(img.truck, this.x, this.y, w, h);
     }
 
-    this.vy += this.gravity * dt;
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    this.angle += this.rot;
-  }
-
-  draw(g) {
-    const a = clamp(this.t / this.life, 0, 1);
-
-    if (img.gold) {
-      const w = img.gold.width * this.scale;
-      const h = img.gold.height * this.scale;
-      g.push();
-      g.translate(this.x, this.y);
-      g.rotate(this.angle);
-      g.tint(255, 255 * a);
-      g.imageMode(CENTER);
-      g.image(img.gold, 0, 0, w, h);
-      g.noTint();
-      g.pop();
+    if (img.net) {
+      const pulse = 1 + (1 - a) * 0.1;
+      const w = img.net.width * 0.45 * pulse;
+      const h = img.net.height * 0.45 * pulse;
+      g.image(img.net, this.x, this.y, w, h);
     }
-  }
-}
 
-class GoldBurst {
-  constructor(x, y) {
-    this.list = [];
-    this.dead = false;
-
-    const count = 5;
-    for (let i = 0; i < count; i++) {
-      const angle = random(-PI * 0.95, -PI * 0.05);
-      const speed = random(120, 320);
-      this.list.push(new GoldParticle(x, y, angle, speed));
-    }
-  }
-
-  update(dt) {
-    for (const p of this.list) p.update(dt);
-    this.list = this.list.filter(p => !p.dead);
-    if (this.list.length === 0) this.dead = true;
-  }
-
-  draw(g) {
-    for (const p of this.list) p.draw(g);
+    g.noTint();
+    g.pop();
   }
 }
 
@@ -804,9 +673,7 @@ function loseLife(x, y) {
   if (gameState !== STATE.PLAYING) return;
 
   lives -= 1;
-  explosions.push(new Explosion(x, y, 0.8));
 
-  // base hit softer than before
   if (lives > 0) {
     playSFX(sfx.baseHit, SFX_VOL.baseHit);
   }
@@ -875,7 +742,7 @@ function handlePress(sx, sy) {
   for (let i = trucks.length - 1; i >= 0; i--) {
     const truck = trucks[i];
     if (truck.hitTest(x, y)) {
-      truck.destroy();
+      truck.capture();
       return;
     }
   }
