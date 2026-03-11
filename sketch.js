@@ -106,6 +106,16 @@ let tutorialLines = [
 ];
 
 // ----------------------------------------------------
+// Spawn dead zone (for Zelensky corner)
+// ----------------------------------------------------
+const SPAWN_DEAD_ZONE = {
+  xMin: 760,
+  xMax: 1080,
+  yMin: -320,
+  yMax: 320,
+};
+
+// ----------------------------------------------------
 // Helpers
 // ----------------------------------------------------
 function assetPath(fileName) {
@@ -211,6 +221,15 @@ function getGoldMeterImage() {
   if (deliveredGold === 1) return img.goldMeter1;
   if (deliveredGold === 2) return img.goldMeter2;
   return img.goldMeter3;
+}
+
+function isInsideSpawnDeadZone(x, y) {
+  return (
+    x >= SPAWN_DEAD_ZONE.xMin &&
+    x <= SPAWN_DEAD_ZONE.xMax &&
+    y >= SPAWN_DEAD_ZONE.yMin &&
+    y <= SPAWN_DEAD_ZONE.yMax
+  );
 }
 
 // ----------------------------------------------------
@@ -547,7 +566,15 @@ class Truck {
     this.w = 170;
     this.h = 230;
 
-    this.baseX = random(120, BASE_W - 120);
+    let tries = 0;
+    let candidateX = random(120, BASE_W - 120);
+
+    while (tries < 30 && isInsideSpawnDeadZone(candidateX, this.y)) {
+      candidateX = random(120, BASE_W - 120);
+      tries++;
+    }
+
+    this.baseX = candidateX;
     this.x = this.baseX;
 
     // faster overall
