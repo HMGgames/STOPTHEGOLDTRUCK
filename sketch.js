@@ -87,27 +87,23 @@ let shotCooldown = 0;
 let shotCooldownDuration = 0.26;
 let reloadSoundCooldown = 0;
 
+// ----------------------------------------------------
+// Hungarian text
+// ----------------------------------------------------
 let tutorialLines = [
-  "Gold convoys are entering Hungary.",
-  "They are trying to reach Peter Magyar.",
+  "Aranyszállító konvojok lépnek be",
+  "Magyarországra.",
   "",
-  "Tap the trucks to capture them",
-  "with police nets.",
+  "Peter Magyarhoz próbálnak eljutni.",
   "",
-  "Don't let the gold reach Peter Magyar.",
+  "Koppints a teherautókra,",
+  "hogy a rendőrségi háló elfogja őket.",
   "",
-  "Tap to begin"
+  "Ne hagyd, hogy az arany",
+  "eljusson Peter Magyarhoz.",
+  "",
+  "Koppints a kezdéshez."
 ];
-
-// ----------------------------------------------------
-// Spawn dead zone (for Zelensky corner)
-// ----------------------------------------------------
-const SPAWN_DEAD_ZONE = {
-  xMin: 760,
-  xMax: 1080,
-  yMin: -300,
-  yMax: 380,
-};
 
 // ----------------------------------------------------
 // Helpers
@@ -217,20 +213,11 @@ function getGoldMeterImage() {
   return img.goldMeter3;
 }
 
-function isInsideSpawnDeadZone(x, y) {
-  return (
-    x >= SPAWN_DEAD_ZONE.xMin &&
-    x <= SPAWN_DEAD_ZONE.xMax &&
-    y >= SPAWN_DEAD_ZONE.yMin &&
-    y <= SPAWN_DEAD_ZONE.yMax
-  );
-}
-
 // ----------------------------------------------------
 // Preload
 // ----------------------------------------------------
 function preload() {
-  img.bg = loadImage(assetPath("bg_desert_route.png"));
+  img.bg = loadImage(assetPath("bg_farmland_v2.png"));
   img.base = loadImage(assetPath("base_peter_magyar.png"));
   img.truck = loadImage(assetPath("enemy_gold_truck.png"));
   img.truckNet = loadImage(assetPath("enemy_gold_truck_net.png"));
@@ -415,15 +402,15 @@ function drawStartScreen() {
     pg.fill(255);
     pg.textAlign(CENTER, CENTER);
     pg.textSize(36);
-    pg.text("START GAME", btn.x + btn.w / 2, btn.y + btn.h / 2);
+    pg.text("KEZDÉS", btn.x + btn.w / 2, btn.y + btn.h / 2);
   }
 }
 
 function drawTutorialOverlay() {
   const w = 900;
-  const h = 430;
+  const h = 520;
   const x = (BASE_W - w) / 2;
-  const y = BASE_H * 0.44;
+  const y = BASE_H * 0.39;
 
   pg.push();
   pg.noStroke();
@@ -436,10 +423,10 @@ function drawTutorialOverlay() {
   pg.textFont(fontMain || "Arial");
   pg.textAlign(CENTER, TOP);
   pg.fill(255);
-  pg.textSize(22);
+  pg.textSize(20);
 
-  const startY = y + 36;
-  const lineH = 34;
+  const startY = y + 34;
+  const lineH = 32;
 
   for (let i = 0; i < tutorialLines.length; i++) {
     pg.text(tutorialLines[i], BASE_W / 2, startY + i * lineH);
@@ -475,15 +462,15 @@ function drawGameOver() {
 
   pg.fill(255);
   pg.textSize(52);
-  pg.text("GAME OVER", BASE_W / 2, BASE_H * 0.58);
+  pg.text("VÉGE A JÁTÉKNAK", BASE_W / 2, BASE_H * 0.58);
 
   pg.fill(255, 220, 0);
   pg.textSize(22);
-  pg.text("The gold reached Peter Magyar.", BASE_W / 2, BASE_H * 0.65);
+  pg.text("Az arany eljutott Peter Magyarhoz.", BASE_W / 2, BASE_H * 0.65);
 
   pg.fill(255);
-  pg.textSize(32);
-  pg.text(`FINAL SCORE: ${score}`, BASE_W / 2, BASE_H * 0.72);
+  pg.textSize(30);
+  pg.text(`VÉGSŐ PONTSZÁM: ${score}`, BASE_W / 2, BASE_H * 0.72);
 
   const btn = getRetryButtonRect();
   if (img.buttonRetry) {
@@ -492,8 +479,8 @@ function drawGameOver() {
     pg.fill(40);
     pg.rect(btn.x, btn.y, btn.w, btn.h, 16);
     pg.fill(255);
-    pg.textSize(34);
-    pg.text("TRY AGAIN", btn.x + btn.w / 2, btn.y + btn.h / 2);
+    pg.textSize(30);
+    pg.text("PRÓBÁLD ÚJRA", btn.x + btn.w / 2, btn.y + btn.h / 2);
   }
 
   pg.pop();
@@ -560,16 +547,8 @@ class Truck {
     this.w = 170;
     this.h = 230;
 
-    let tries = 0;
-    let candidateX = random(120, BASE_W - 120);
-
-    while (tries < 30 && isInsideSpawnDeadZone(candidateX, this.y)) {
-      candidateX = random(120, BASE_W - 120);
-      tries++;
-    }
-
-    this.baseX = candidateX;
-    this.x = candidateX;
+    this.baseX = random(120, BASE_W - 120);
+    this.x = this.baseX;
 
     // faster overall
     this.speed = random(390, 540) + getTruckSpeedBonus();
@@ -602,7 +581,6 @@ class Truck {
     this.y += this.speed * dt;
 
     if (this.moveType === "straight") {
-      // tiny natural drift
       this.x += this.driftVx * 0.18 * dt;
     } else if (this.moveType === "drift") {
       this.x += this.driftVx * dt;
@@ -617,7 +595,6 @@ class Truck {
       }
       this.x = clamp(this.x, 95, BASE_W - 95);
     } else {
-      // keep zig-zag inside bounds naturally
       this.x = clamp(this.x, 95, BASE_W - 95);
     }
 
