@@ -66,8 +66,10 @@ let captures = [];
 let popups = [];
 
 let score = 0;
-let lives = 3;
-let maxLives = 3;
+
+// gold deliveries instead of hearts
+let deliveredGold = 0;
+let maxDeliveredGold = 3;
 
 let spawnTimer = 0;
 let spawnInterval = 1.0;
@@ -96,6 +98,16 @@ let tutorialLines = [
   "",
   "Tap to begin"
 ];
+
+// ----------------------------------------------------
+// Spawn dead zone (for Zelensky corner)
+// ----------------------------------------------------
+const SPAWN_DEAD_ZONE = {
+  xMin: 760,
+  xMax: 1080,
+  yMin: -300,
+  yMax: 380,
+};
 
 // ----------------------------------------------------
 // Helpers
@@ -194,6 +206,22 @@ function getTruckSpeedBonus() {
   return Math.min(240, trucksCaptured * 5.5);
 }
 
+function getGoldMeterImage() {
+  if (deliveredGold <= 0) return img.goldMeter0;
+  if (deliveredGold === 1) return img.goldMeter1;
+  if (deliveredGold === 2) return img.goldMeter2;
+  return img.goldMeter3;
+}
+
+function isInsideSpawnDeadZone(x, y) {
+  return (
+    x >= SPAWN_DEAD_ZONE.xMin &&
+    x <= SPAWN_DEAD_ZONE.xMax &&
+    y >= SPAWN_DEAD_ZONE.yMin &&
+    y <= SPAWN_DEAD_ZONE.yMax
+  );
+}
+
 // ----------------------------------------------------
 // Preload
 // ----------------------------------------------------
@@ -203,9 +231,15 @@ function preload() {
   img.truck = loadImage(assetPath("enemy_gold_truck.png"));
   img.truckNet = loadImage(assetPath("enemy_gold_truck_net.png"));
   img.net = loadImage(assetPath("fx_net.png"));
-  img.heart = loadImage(assetPath("ui_heart.png"));
+
   img.buttonStart = loadImage(assetPath("ui_gold_button_start.png"));
   img.buttonRetry = loadImage(assetPath("ui_gold_button_retry.png"));
+
+  img.goldMeter0 = loadImage(assetPath("ui_gold_meter_0.png"));
+  img.goldMeter1 = loadImage(assetPath("ui_gold_meter_1.png"));
+  img.goldMeter2 = loadImage(assetPath("ui_gold_meter_2.png"));
+  img.goldMeter3 = loadImage(assetPath("ui_gold_meter_3.png"));
+
   img.screenTitle = loadImage(assetPath("screen_title_police.png"));
   img.screenGameOver = loadImage(assetPath("screen_game_over_fun.png"));
 
@@ -253,7 +287,7 @@ function resetGame() {
   popups = [];
 
   score = 0;
-  lives = 3;
+  deliveredGold = 0;
 
   trucksCaptured = 0;
   tutorialActive = false;
@@ -313,12 +347,13 @@ function drawBackground() {
 function drawBase() {
   if (!img.base) return;
 
-  const targetW = BASE_W * 1.02;
+  // moved a bit to the left to make room for meter on bottom-right
+  const targetW = BASE_W * 0.84;
   const ratio = img.base.height / img.base.width;
   const targetH = targetW * ratio;
 
-  const x = (BASE_W - targetW) / 2;
-  const y = BASE_H - targetH - 6;
+  const x = 70;
+  const y = BASE_H - targetH - 10;
 
   pg.image(img.base, x, y, targetW, targetH);
 }
@@ -328,24 +363,24 @@ function drawHUD() {
   pg.textFont(fontMain || "Arial");
   pg.textAlign(LEFT, TOP);
 
+  // Score
   pg.fill(0, 180);
   pg.rect(26, 24, 320, 72, 14);
   pg.fill(255);
   pg.textSize(28);
   pg.text(`SCORE ${score}`, 44, 46);
 
-  const heartSize = 56;
-  const gap = 14;
-  const totalW = maxLives * heartSize + (maxLives - 1) * gap;
-  const startX = BASE_W - totalW - 30;
-  const y = 30;
-
-  for (let i = 0; i < lives; i++) {
-    if (img.heart) {
-      pg.image(img.heart, startX + i * (heartSize + gap), y, heartSize, heartSize);
-    }
+  // Gold delivery meter bottom-right
+  const meterImg = getGoldMeterImage();
+  if (meterImg) {
+    const w = 250;
+    const h = (meterImg.height / meterImg.width) * w;
+    const x = BASE_W - w - 28;
+    const y = BASE_H - h - 42;
+    pg.image(meterImg, x, y, w, h);
   }
 
+  // Reload bar
   if (!canShoot) {
     const barX = 26;
     const barY = 108;
@@ -519,14 +554,24 @@ function updatePlaying(dt) {
 class Truck {
   constructor() {
     this.scale = random(0.86, 0.98);
-    this.x = random(120, BASE_W - 120);
     this.y = -240;
-    this.speed = random(340, 470) + getTruckSpeedBonus();
     this.dead = false;
     this.vx = random(-30, 30);
 
     this.w = 170;
     this.h = 230;
+
+    // spawn avoiding Zelensky dead zone
+    let tries = 0;
+    let candidateX = random(120, BASE_W - 120);
+
+    while (tries < 30 && isInsideSpawnDeadZone(candidateX, this.y)) {
+      candidateX = random(120, BASE_W - 120);
+      tries++;
+    }
+
+    this.x = candidateX;
+    this.speed = random(340, 470) + getTruckSpeedBonus();
   }
 
   getBottomDangerY() {
@@ -672,14 +717,14 @@ class ScorePopup {
 function loseLife(x, y) {
   if (gameState !== STATE.PLAYING) return;
 
-  lives -= 1;
+  deliveredGold += 1;
 
-  if (lives > 0) {
+  if (deliveredGold < maxDeliveredGold) {
     playSFX(sfx.baseHit, SFX_VOL.baseHit);
   }
 
-  if (lives <= 0) {
-    lives = 0;
+  if (deliveredGold >= maxDeliveredGold) {
+    deliveredGold = maxDeliveredGold;
     playSFX(sfx.gameOver, SFX_VOL.gameOver);
     setState(STATE.GAME_OVER);
   }
@@ -749,7 +794,7 @@ function handlePress(sx, sy) {
 }
 
 function pointInRect(px, py, r) {
-  return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+  return px >= r.x && px <= r.x + r.w && py <= r.y + r.h && py >= r.y;
 }
 
 // ----------------------------------------------------
